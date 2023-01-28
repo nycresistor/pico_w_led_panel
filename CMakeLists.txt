@@ -27,6 +27,7 @@ pico_sdk_init()
 
 add_executable(pico_w_led_panel
   pico_w_led_panel.cpp
+  matrix/led_matrix.cpp
   ${PICO_SDK_PATH}/lib/lwip/src/apps/mqtt/mqtt.c)
 
 add_definitions(
@@ -62,6 +63,7 @@ pico_enable_stdio_usb(pico_w_led_panel 1)
 target_link_libraries(pico_w_led_panel
   pico_cyw43_arch_lwip_threadsafe_background
   pico_stdlib
+  pico_multicore
   pico_lwip_sntp
   hardware_rtc)
 

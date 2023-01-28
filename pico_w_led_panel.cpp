@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
+#include "pico/multicore.h"
 
 #include "pico/cyw43_arch.h"
 #include "hardware/rtc.h"
@@ -13,6 +14,8 @@
 #include "lwip/tcp.h"
 #include "lwip/dns.h"
 #include <string.h>
+
+#include "matrix/redscroller.h"
 
 
 //// CONFIGURATION
@@ -107,13 +110,22 @@ static void mqtt_found(const char *hostname, const ip_addr_t *ipaddr, void *arg)
     }
 }
 
+void core1() {    
+    ledmatrix_setup();
+    while (1) ledmatrix_draw();
+}
 
 // Main loop
 int main()
 {
     stdio_init_all();
 
-    sleep_ms(3000);
+    
+    sleep_ms(1000);
+
+    printf("Spawning matrix.\n");
+    multicore_launch_core1(core1);
+    
     /// Connect to the wifi.
     /// TODO: user-facing reporting that wifi connection has failed
     if (cyw43_arch_init_with_country(CYW43_COUNTRY_USA)) {

@@ -15,7 +15,7 @@
 #include "lwip/dns.h"
 #include <string.h>
 
-#include "matrix/redscroller.h"
+#include "matrix/led_matrix.h"
 
 
 //// CONFIGURATION

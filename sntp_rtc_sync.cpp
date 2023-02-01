@@ -30,9 +30,10 @@ extern "C" {
 #define UNIX_EPOCH 2208988800UL
 #define EPOCH_2000 946684800UL
 
-#define DAYS_PER_4_YEARS        (3 * 365 + 366)
-#define DAYS_PER_YEAR           365
+#define DAYS_PER_YEAR 365
+#define DAYS_PER_4_YEARS (4*DAYS_PER_YEAR + 1)
 
+// It's everybody's favorite code to implement and test: date handling!
 void set_system_time(u32_t secs, u32_t frac){
     static int month_len[12] = {
         31, 28, 31, 30,
@@ -50,22 +51,31 @@ void set_system_time(u32_t secs, u32_t frac){
     dt.hour = time_of_day / 3600;
 
     dt.dotw = (day_number + 6) % 7; // 2020 started on a Saturday
-    uint32_t years_since_2000 = (day_number - day_number/(4*365)) / 365;
-    dt.year = 2000 + years_since_2000;
-    day_number = day_number - (365 * years_since_2000 + years_since_2000/4);
+
+    // We are going to ignore 100-year leap day skips. This code will have
+    // a Y2.1K problem.
+    int y4s = day_number / DAYS_PER_4_YEARS;
+    day_number -= y4s * DAYS_PER_4_YEARS;
+    dt.year = 2000 + 4*y4s;
+    if (day_number > DAYS_PER_YEAR) { // handle leap year
+        day_number -= DAYS_PER_YEAR+1; dt.year++;
+    }
+    int ys = day_number / DAYS_PER_YEAR;
+    dt.year += ys; // this completes the year computation
+    day_number -= ys * DAYS_PER_YEAR; 
     int month = 0;
     while (day_number >= month_len[month]) {
-        if (month == 1 && day_number == 28 && (years_since_2000 % 4) == 0) break; // leap year
+        if (month == 1 && day_number == 28 && (dt.year % 4) == 0) break; // leap year
         day_number -= month_len[month];
         month++;
     }
+    // Correct for expected 1-indexing
     dt.month = month + 1;
     dt.day = day_number + 1;
 
-    //printf("Time is %d:%d:%d\n",dt.hour,dt.min,dt.sec);
-    synchronization_state = RTC_SYNC_GOOD;
     rtc_init();
     rtc_set_datetime(&dt);
+    synchronization_state = RTC_SYNC_GOOD;
 }
 
 
@@ -75,9 +85,11 @@ void start_synchronization(int tz_off, bool blocking) {
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
     sntp_init();
     synchronization_state = RTC_SYNC_TRYING;
-    while (synchronization_state == RTC_SYNC_TRYING) {
-        // TODO: time out eventually
-        sleep_ms(1);
+    if (blocking) {
+        while (synchronization_state == RTC_SYNC_TRYING) {
+            // TODO: time out eventually
+            sleep_ms(1);
+        }
     }
     printf("Got it.\n");
     sntp_stop();

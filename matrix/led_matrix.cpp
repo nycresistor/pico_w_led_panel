@@ -32,19 +32,6 @@ void ledmatrix_setup()
     for (int i = 0; i < HEIGHT; i++) {
         gpio_init(row_pins[i]);
         gpio_set_dir(row_pins[i], GPIO_IN);
-
-        //                  ___          _____          ___
-        //      ___        /  /\        /  /::\        /  /\    
-        //     /  /\      /  /::\      /  /:/\:\      /  /::\   
-        //    /  /:/     /  /:/\:\    /  /:/  \:\    /  /:/\:\  
-        //   /  /:/     /  /:/  \:\  /__/:/ \__\:|  /  /:/  \:\ 
-        //  /  /::\    /__/:/ \__\:\ \  \:\ /  /:/ /__/:/ \__\:\
-        // /__/:/\:\   \  \:\ /  /:/  \  \:\  /:/  \  \:\ /  /:/
-        // \__\/  \:\   \  \:\  /:/    \  \:\/:/    \  \:\  /:/
-        //      \  \:\   \  \:\/:/      \  \::/      \  \:\/:/
-        //       \__\/    \  \::/        \__\/        \  \::/
-        //                 \__\/                       \__\/
-        // gpio_disable_pulls(row_pins[i]);  //// TODO: triple-check that this works
         gpio_pull_down(row_pins[i]);
     }
     // The pins for the shift registers; this array is only needed for initialization.

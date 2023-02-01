@@ -27,7 +27,9 @@ pico_sdk_init()
 
 add_executable(pico_w_led_panel
   pico_w_led_panel.cpp
+  sntp_rtc_sync.cpp
   matrix/led_matrix.cpp
+  matrix/font.c
   ${PICO_SDK_PATH}/lib/lwip/src/apps/mqtt/mqtt.c)
 
 add_definitions(

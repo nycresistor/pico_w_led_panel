@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
-
+#include "pico/util/datetime.h"
+#include "sntp_rtc_sync.h"
 #include "pico/cyw43_arch.h"
 #include "hardware/rtc.h"
 #include "lwip/apps/mqtt.h"
-#include "lwip/apps/sntp.h"
 #include "lwip/timeouts.h"
 #include "lwip/ip_addr.h"
 #include "lwip/mem.h"
@@ -58,46 +58,6 @@ void cb_complete(void* arg, err_t err) {
 }
 
 
-bool sntp_done = false;
-
-extern "C" {
-    void set_system_time(u32_t secs);
-}
-
-void set_system_time(u32_t secs){
-    time_t t = secs;
-    datetime_t dt;
-    // set: year, month, day, hour, min, sec-- do we need dotw?
-    dt.year = 1900; // NTP epoch is jan 1 1900
-    dt.day = 1;
-    dt.month = 1;
-    uint32_t time_of_day = t % (60*60*24);
-    uint32_t day_number = t / (60*60*24);
-    dt.sec = time_of_day % 60;
-    dt.min = (time_of_day / 60) % 60;
-    dt.hour = time_of_day / 3600;
-
-    printf("Time is %d:%d:%d\n",dt.hour,dt.min,dt.sec);
-    sntp_done = true;
-    rtc_set_datetime(&dt);
-}
-
-// Retrieve and set time from an NTP server; returns true on success.
-bool retrieve_ntp_time() {
-    sntp_done = false;
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_init();
-    printf("Starting to retrieve time...\n");
-    while (!sntp_done) {
-        // TODO: time out eventually
-        sleep_ms(1);
-    }
-    printf("Got it.\n");
-    sntp_stop();
-    return sntp_done;
-}
-
-
 static void mqtt_found(const char *hostname, const ip_addr_t *ipaddr, void *arg)
 {
     int *status = (int*)arg;
@@ -112,7 +72,9 @@ static void mqtt_found(const char *hostname, const ip_addr_t *ipaddr, void *arg)
 
 void core1() {    
     ledmatrix_setup();
-    while (1) ledmatrix_draw();
+    while (1) {
+        ledmatrix_draw();
+    }
 }
 
 // Main loop
@@ -140,15 +102,15 @@ int main()
     printf("Successfully connected to network.");
 
     /// Configure the RTC and retrieve time from NTP server.
-    rtc_init();
-    retrieve_ntp_time();
+    start_synchronization(-5,true);
 
     /// Attempt to connect to the MQTT server.
     ip_addr_t mqtt_ip;
-    while (true)
+    int retries = 10;
+    int status = 0;
+    while (retries-- > 0)
     {
         printf("Looking up " MQTT_HOSTNAME "...");
-        int status = 0;
         err_t err = dns_gethostbyname(mqtt_hostname, &mqtt_ip,
                                       mqtt_found, &status);
         while (status == 0) {
@@ -161,6 +123,7 @@ int main()
             printf("Retrying.\n");
         }
     }
+    if (status == 1) {
  
     mqtt_client_t* client = mqtt_client_new();
     mqtt_connect_client_info_t client_info = {
@@ -176,19 +139,37 @@ int main()
     if (err != ERR_OK) { // handle error
         printf("MQTT connect error %d\n",err);
     } else {
+        int retries = 10;
         while (!mqtt_client_is_connected(client)) {
-            sleep_ms(1);
+            sleep_ms(100);
+            if (--retries == 0) break;
         }
-        printf("Connected!\n");
-        cyw43_arch_lwip_begin();
-        err_t err = mqtt_publish(client, "house/silly", "Pico W online!", 14, 2, 0, cb_complete, NULL);
-        cyw43_arch_lwip_end();
-        if (err != ERR_OK) {
-            printf("MQTT publish error %d\n",err);
+        if (mqtt_client_is_connected(client)) {
+            printf("Connected!\n");
+            cyw43_arch_lwip_begin();
+            err_t err = mqtt_publish(client, "house/silly", "Pico W online!", 14, 2, 0, cb_complete, NULL);
+            cyw43_arch_lwip_end();
+            if (err != ERR_OK) {
+                printf("MQTT publish error %d\n",err);
+            }
+            while (!done) {
+                sleep_ms(1);
+            }
+            printf("all done\n");
+        } else {
+            printf("MQTT not connected.\n");
         }
-    } 
-    while (!done) {
-        sleep_ms(1);
     }
-    printf("all done\n");
+    }
+    while (1) {
+        sleep_ms(100);
+        draw_clear();
+        static datetime_t dt;
+        rtc_get_datetime(&dt);
+        static char datetime_buf[256];
+        static char *datetime_str = datetime_buf;
+        datetime_to_str(datetime_str, sizeof(datetime_buf), &dt);
+        printf("\r%s      ", datetime_str);
+        draw_time(dt.hour/10,dt.hour%10,dt.min/10,dt.min%10);
+    }
 }

@@ -1,6 +1,5 @@
-#ifndef _sparktime_h_
-#define _sparktime_h_
-
+#ifndef __LED_MATRIX_H__
+#define __LED_MATRIX_H__
 #include <stdint.h>
 
 #define ASCII_OFFSET 0x20
@@ -9,60 +8,50 @@
 #define WIDTH 90
 #define HEIGHT 7
 
-
 extern uint8_t LETTERS[][5];
 
-extern void
+typedef uint8_t* Framebuffer;
+
+
+void
 ledmatrix_setup();
 
-extern void
+void
 ledmatrix_draw();
 
-
-extern void
+void
 ledmatrix_set_col(
-	const uint8_t col,
-	const uint8_t bits,
-	const uint8_t bright
-);
+    const uint8_t col,
+    const uint8_t bits,
+    const uint8_t bright);
 
-
-extern void
+void
 ledmatrix_set(
-	const uint8_t col,
-	const uint8_t row,
-	const uint8_t bright
-);
+    const uint8_t col,
+    const uint8_t row,
+    const uint8_t bright);
 
-
-extern void
+void
 draw_string(
-	const char outText[]
-);
+    const char outText[]);
 
+void draw_char(
+    unsigned col,
+    const char c);
+
+void draw_small_digit(
+    uint8_t column,
+    unsigned digit,
+    unsigned blinking);
 
 void
-draw_char(
-	unsigned col,
-	const char c
-);
-
-void
-draw_small_digit(
-	uint8_t column,
-	unsigned digit,
-	unsigned blinking
-);
-
-extern void
 draw_time(
-	uint8_t dig1,
-	uint8_t dig2,
-	uint8_t dig3,
-	uint8_t dig4
-);
+    uint8_t dig1,
+    uint8_t dig2,
+    uint8_t dig3,
+    uint8_t dig4);
 
-extern void
+void
 draw_clear();
 
-#endif
+#endif // __LED_MATRIX_H__

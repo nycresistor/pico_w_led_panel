@@ -10,29 +10,30 @@
 
 extern uint8_t LETTERS[][5];
 
-typedef uint8_t* Framebuffer;
+/// The framebuffer is double-buffered. All drawing methods draw to the offscreen
+/// draw buffer; swap_buffer() sends the current buffer to the display.
+/// draw buffer;
 
+/// Set up led matrix.
+void ledmatrix_setup();
 
-void
-ledmatrix_setup();
+/// Draw current framebuffer.
+void ledmatrix_draw();
 
-void
-ledmatrix_draw();
+/// Commit the draw buffer to the framebuffer.
+void swap_buffer();
 
-void
-ledmatrix_set_col(
+void draw_col(
     const uint8_t col,
     const uint8_t bits,
     const uint8_t bright);
 
-void
-ledmatrix_set(
+void draw_px(
     const uint8_t col,
     const uint8_t row,
     const uint8_t bright);
 
-void
-draw_string(
+void draw_string(
     const char outText[]);
 
 void draw_char(
@@ -44,14 +45,12 @@ void draw_small_digit(
     unsigned digit,
     unsigned blinking);
 
-void
-draw_time(
+void draw_time(
     uint8_t dig1,
     uint8_t dig2,
     uint8_t dig3,
     uint8_t dig4);
 
-void
-draw_clear();
+void draw_clear();
 
 #endif // __LED_MATRIX_H__

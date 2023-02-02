@@ -21,8 +21,26 @@
 #define ROW5 10
 #define ROW6 11
 
-// Frame buffer
-static uint8_t fb[HEIGHT][WIDTH];
+
+
+// Frame buffers
+//typedef struct {
+//    uint8_t fb[HEIGHT][WIDTH];
+//} FrameBuf;
+
+typedef uint8_t FrameBuf[HEIGHT][WIDTH];
+
+static FrameBuf fbs[2];
+static FrameBuf* disp_fb = &fbs[0];
+static FrameBuf* draw_fb = &fbs[1];
+
+/// Commit the draw buffer to the framebuffer.
+void swap_buffer() {
+    /// TODO: SYNC
+    FrameBuf* tmp = disp_fb;
+    disp_fb = draw_fb;
+    draw_fb = tmp;
+}
 
 // Row pins as an array for convenience
 static const uint16_t row_pins[HEIGHT] = { ROW0, ROW1, ROW2, ROW3, ROW4, ROW5, ROW6 };
@@ -44,7 +62,7 @@ void ledmatrix_setup()
     // Load a test pattern into the framebuffer.
     for (int y = 0; y < HEIGHT; y++)
         for (int x = 0; x < WIDTH; x++)
-            fb[y][x] = (x % 8) < y ? 0 : 1;
+            (*disp_fb)[y][x] = (x % 8) < y ? 0 : 1;
 }
 
 static inline void row(const int row_pin,
@@ -118,26 +136,18 @@ void pwm_loop()
     // for(unsigned x = 0; x < 256 ; x++)
     {
         for (unsigned i = 0; i < 8; i++) {
-            row(ROW0, fb[0], i * 256 / 8, bright[i]);
-            row(ROW1, fb[1], i * 256 / 8, bright[i]);
-            row(ROW2, fb[2], i * 256 / 8, bright[i]);
-            row(ROW3, fb[3], i * 256 / 8, bright[i]);
-            row(ROW4, fb[4], i * 256 / 8, bright[i]);
-            row(ROW5, fb[5], i * 256 / 8, bright[i]);
-            row(ROW6, fb[6], i * 256 / 8, bright[i]);
+            for (int j = 0; j < HEIGHT; j++) {
+                row(row_pins[j], (*disp_fb)[j], i * 256 / 8, bright[i]);
+            }
         }
     }
 }
 
 void binary_loop()
 {
-    row(ROW0, fb[0], 0, 400);
-    row(ROW1, fb[1], 0, 400);
-    row(ROW2, fb[2], 0, 400);
-    row(ROW3, fb[3], 0, 400);
-    row(ROW4, fb[4], 0, 400);
-    row(ROW5, fb[5], 0, 400);
-    row(ROW6, fb[6], 0, 400);
+    for (int i = 0; i < HEIGHT; i++) {
+        row(row_pins[i], (*disp_fb[i]), 0, 400);
+    }
 }
 
 void ledmatrix_draw()
@@ -147,21 +157,21 @@ void ledmatrix_draw()
 }
 
 /** Set an entire column at once */
-void ledmatrix_set_col(
+void draw_col(
     const uint8_t col,
     const uint8_t bits,
     const uint8_t bright)
 {
     for (uint8_t i = 0; i < HEIGHT; i++)
-        ledmatrix_set(col, i, (bits & (1 << i)) ? bright : 0);
+        draw_px(col, i, (bits & (1 << i)) ? bright : 0);
 }
 
-void ledmatrix_set(
+void draw_px(
     const uint8_t col,
     const uint8_t row,
     const uint8_t bright)
 {
-    fb[row][col] = bright;
+    (*draw_fb)[row][col] = bright;
 }
 
 
@@ -172,7 +182,7 @@ draw_char(
 )
 {
 	for (uint8_t y=0 ; y<5 ; y++)
-		ledmatrix_set_col(col++, LETTERS[c - ASCII_OFFSET][y], 0xFF);
+		draw_col(col++, LETTERS[c - ASCII_OFFSET][y], 0xFF);
 }
 
 
@@ -198,7 +208,7 @@ draw_small_digit(
 {
 	for (unsigned i=0 ; i < 4 ; i++)
 	{
-		ledmatrix_set_col(
+		draw_col(
 			column+i,
 			LETTERS[digit+DIGIT_OFFSET][i+1],
 			0xFF //blinkON && blinking ? 0 : 0xFF
@@ -214,7 +224,7 @@ void
 draw_clear()
 {
 	for (int i=0 ; i<WIDTH ; i++)
-		ledmatrix_set_col(i, 0, 0);
+		draw_col(i, 0, 0);
 }
 
 
@@ -247,8 +257,8 @@ draw_time(
 	uint8_t b = bright++ / 1;
 	if (b >= 128)
 		b = 0xFF - b;
-	ledmatrix_set(10, 2, 2*b);
-	ledmatrix_set(10, 4, 2*b);
+	draw_px(10, 2, 2*b);
+	draw_px(10, 4, 2*b);
 
 	draw_small_digit(12, dig3, blinkMin);
 	draw_small_digit(16, dig4, blinkMin);

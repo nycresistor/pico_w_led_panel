@@ -28,16 +28,17 @@
 //    uint8_t fb[HEIGHT][WIDTH];
 //} FrameBuf;
 
-typedef uint8_t FrameBuf[HEIGHT][WIDTH];
+uint8_t fb1[HEIGHT*WIDTH];
+uint8_t fb2[HEIGHT*WIDTH];
 
-static FrameBuf fbs[2];
-static FrameBuf* disp_fb = &fbs[0];
-static FrameBuf* draw_fb = &fbs[1];
+
+static uint8_t* disp_fb = fb2;
+static uint8_t* draw_fb = fb1;
 
 /// Commit the draw buffer to the framebuffer.
 void swap_buffer() {
     /// TODO: SYNC
-    FrameBuf* tmp = disp_fb;
+    uint8_t* tmp = disp_fb;
     disp_fb = draw_fb;
     draw_fb = tmp;
 }
@@ -62,7 +63,7 @@ void ledmatrix_setup()
     // Load a test pattern into the framebuffer.
     for (int y = 0; y < HEIGHT; y++)
         for (int x = 0; x < WIDTH; x++)
-            (*disp_fb)[y][x] = (x % 8) < y ? 0 : 1;
+            disp_fb[y*WIDTH + x] = (x % 8) < y ? 0 : 1;
 }
 
 static inline void row(const int row_pin,
@@ -137,7 +138,7 @@ void pwm_loop()
     {
         for (unsigned i = 0; i < 8; i++) {
             for (int j = 0; j < HEIGHT; j++) {
-                row(row_pins[j], (*disp_fb)[j], i * 256 / 8, bright[i]);
+                row(row_pins[j], disp_fb+(j*WIDTH), i * 256 / 8, bright[i]);
             }
         }
     }
@@ -146,7 +147,7 @@ void pwm_loop()
 void binary_loop()
 {
     for (int i = 0; i < HEIGHT; i++) {
-        row(row_pins[i], (*disp_fb[i]), 0, 400);
+        row(row_pins[i], disp_fb+(i*WIDTH), 0, 400);
     }
 }
 
@@ -171,7 +172,7 @@ void draw_px(
     const uint8_t row,
     const uint8_t bright)
 {
-    (*draw_fb)[row][col] = bright;
+    draw_fb[row*WIDTH+col] = bright;
 }
 
 

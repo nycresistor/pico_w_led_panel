@@ -171,5 +171,6 @@ int main()
         datetime_to_str(datetime_str, sizeof(datetime_buf), &dt);
         printf("\r%s      ", datetime_str);
         draw_time(dt.hour/10,dt.hour%10,dt.min/10,dt.min%10);
+        swap_buffer();
     }
 }

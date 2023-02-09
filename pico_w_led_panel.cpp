@@ -94,6 +94,10 @@ void debug_msg(const char* format, ...)
     swap_buffer();
 }
 
+const char* month_abbrevs[12] =
+    { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
 // Main loop
 int main()
 {
@@ -185,12 +189,15 @@ int main()
         rtc_get_datetime(&dt);
         static char datetime_buf[256];
         static char* datetime_str = datetime_buf;
-        char buf[8];
+        char buf[16];
         snprintf(buf, 8, "%2d", dt.hour);
         int col = draw_string(0, buf, false);
         col = draw_string(col, ":", true);
         snprintf(buf, 8, "%02d", dt.min);
         col = draw_string(col + 1, buf, false);
+        col += 10;
+        snprintf(buf, 16, "%d %s %02d", dt.day, month_abbrevs[dt.month], dt.year%100);
+        col = draw_string(col + 1, buf, true);
         swap_buffer();
     }
 }

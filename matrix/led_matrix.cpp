@@ -163,6 +163,7 @@ void draw_col(
     const uint8_t bits,
     const uint8_t bright)
 {
+    if (col >= WIDTH) return;
     for (uint8_t i = 0; i < HEIGHT; i++)
         draw_px(col, i, (bits & (1 << i)) ? bright : 0);
 }
@@ -233,6 +234,7 @@ void draw_clear()
     for (int i = 0; i < WIDTH; i++)
         draw_col(i, 0, 0);
 }
+
 
 /**
  * Display the four digit time with small characters.

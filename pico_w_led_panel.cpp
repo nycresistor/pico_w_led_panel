@@ -88,7 +88,7 @@ void debug_msg(const char* format, ...) {
     snprintf(buf, 16, format, args);
     va_end(args);
     draw_clear();
-    draw_string(buf);
+    draw_string(0,buf);
     swap_buffer();
 }
     
@@ -183,9 +183,12 @@ int main()
         rtc_get_datetime(&dt);
         static char datetime_buf[256];
         static char *datetime_str = datetime_buf;
-        datetime_to_str(datetime_str, sizeof(datetime_buf), &dt);
-        printf("\r%s      ", datetime_str);
-        draw_time(dt.hour/10,dt.hour%10,dt.min/10,dt.min%10);
+        char buf[8];
+        snprintf(buf, 8, "%2d", dt.hour);
+        int col = draw_string(0,buf,false);
+        col = draw_string(col,":",true);
+        snprintf(buf, 8, "%02d", dt.min);
+        col = draw_string(col+1,buf,false);
         swap_buffer();
     }
 }

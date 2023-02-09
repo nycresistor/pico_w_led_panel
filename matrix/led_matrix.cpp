@@ -184,6 +184,9 @@ draw_char(
 )
 {
     uint8_t w = 0;
+    if (c == ' ') {
+        return proportional?3:5;
+    }
     for (uint8_t y=0 ; y<5 ; y++) {
         uint8_t cv = LETTERS[c-ASCII_OFFSET][y];
         if (!proportional || (cv != 0)) {
@@ -197,15 +200,17 @@ draw_char(
 /*
  * Output 4 Characters to Display
  */
-void
-draw_string(
+uint8_t
+draw_string(const uint8_t col,
             const char * outText,
             bool proportional
         
 )
 {
-	for (int i=0 ; i < WIDTH && *outText ; i+=1)
+    int i;
+	for (i=col ; i < WIDTH && *outText ; i+=1)
             i += draw_char(i, *outText++, proportional);
+        return i;
 }
 
 

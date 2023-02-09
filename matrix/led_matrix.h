@@ -33,8 +33,10 @@ void draw_px(
     const uint8_t row,
     const uint8_t bright);
 
-void draw_string(const char outText[],
-                 bool proportional = true);
+// Returns final column after drawn string.
+uint8_t draw_string(const uint8_t col,
+                    const char* s,
+                    bool proportional = true);
 
 // Returns the width of the character drawn.
 uint8_t draw_char(unsigned col,

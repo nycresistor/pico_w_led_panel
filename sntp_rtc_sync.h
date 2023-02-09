@@ -1,5 +1,5 @@
-#include "pico/stdlib.h"
 #include "hardware/rtc.h"
+#include "pico/stdlib.h"
 
 typedef enum {
     RTC_SYNC_NONE = 0,

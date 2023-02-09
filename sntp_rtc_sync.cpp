@@ -1,20 +1,18 @@
-#include <stdio.h>
-#include "pico/stdlib.h"
 #include "sntp_rtc_sync.h"
+#include "pico/stdlib.h"
+#include <stdio.h>
 
-#include "pico/cyw43_arch.h"
 #include "hardware/rtc.h"
 #include "lwip/apps/sntp.h"
-#include "lwip/timeouts.h"
+#include "lwip/dns.h"
+#include "lwip/err.h"
 #include "lwip/ip_addr.h"
 #include "lwip/mem.h"
-#include "lwip/err.h"
 #include "lwip/pbuf.h"
 #include "lwip/tcp.h"
-#include "lwip/dns.h"
+#include "lwip/timeouts.h"
+#include "pico/cyw43_arch.h"
 #include <string.h>
-
-
 
 SyncState synchronization_state = RTC_SYNC_NONE;
 int tz_off_s = 0;
@@ -24,27 +22,38 @@ int tz_off_s = 0;
 /// the RTC once synchronization has been achieved.
 
 extern "C" {
-    void set_system_time(u32_t secs, u32_t frac);
+void set_system_time(u32_t secs, u32_t frac);
 }
 
 #define UNIX_EPOCH 2208988800UL
 #define EPOCH_2000 946684800UL
 
 #define DAYS_PER_YEAR 365
-#define DAYS_PER_4_YEARS (4*DAYS_PER_YEAR + 1)
+#define DAYS_PER_4_YEARS (4 * DAYS_PER_YEAR + 1)
 
 // It's everybody's favorite code to implement and test: date handling!
-void set_system_time(u32_t secs, u32_t frac){
+void set_system_time(u32_t secs, u32_t frac)
+{
     static int month_len[12] = {
-        31, 28, 31, 30,
-        31, 30, 31, 31,
-        30, 31, 30, 31, };
-    
+        31,
+        28,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    };
+
     time_t t = secs + tz_off_s - (UNIX_EPOCH + EPOCH_2000); // seconds since NYD 2000
     datetime_t dt;
 
-    uint32_t time_of_day = t % (60*60*24);
-    uint32_t day_number = t / (60*60*24);
+    uint32_t time_of_day = t % (60 * 60 * 24);
+    uint32_t day_number = t / (60 * 60 * 24);
 
     dt.sec = time_of_day % 60;
     dt.min = (time_of_day / 60) % 60;
@@ -56,16 +65,18 @@ void set_system_time(u32_t secs, u32_t frac){
     // a Y2.1K problem.
     int y4s = day_number / DAYS_PER_4_YEARS;
     day_number -= y4s * DAYS_PER_4_YEARS;
-    dt.year = 2000 + 4*y4s;
+    dt.year = 2000 + 4 * y4s;
     if (day_number > DAYS_PER_YEAR) { // handle leap year
-        day_number -= DAYS_PER_YEAR+1; dt.year++;
+        day_number -= DAYS_PER_YEAR + 1;
+        dt.year++;
     }
     int ys = day_number / DAYS_PER_YEAR;
     dt.year += ys; // this completes the year computation
-    day_number -= ys * DAYS_PER_YEAR; 
+    day_number -= ys * DAYS_PER_YEAR;
     int month = 0;
     while (day_number >= month_len[month]) {
-        if (month == 1 && day_number == 28 && (dt.year % 4) == 0) break; // leap year
+        if (month == 1 && day_number == 28 && (dt.year % 4) == 0)
+            break; // leap year
         day_number -= month_len[month];
         month++;
     }
@@ -78,9 +89,9 @@ void set_system_time(u32_t secs, u32_t frac){
     synchronization_state = RTC_SYNC_GOOD;
 }
 
-
 // Retrieve and set time from an NTP server; returns true on success.
-void start_synchronization(int tz_off, bool blocking) {
+void start_synchronization(int tz_off, bool blocking)
+{
     tz_off_s = tz_off * 60 * 60;
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
     sntp_init();
@@ -94,4 +105,3 @@ void start_synchronization(int tz_off, bool blocking) {
     printf("Got it.\n");
     sntp_stop();
 }
-

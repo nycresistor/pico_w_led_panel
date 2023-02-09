@@ -35,13 +35,13 @@ void draw_px(
 
 // Returns final column after drawn string.
 uint8_t draw_string(const uint8_t col,
-                    const char* s,
-                    bool proportional = true);
+    const char* s,
+    bool proportional = true);
 
 // Returns the width of the character drawn.
 uint8_t draw_char(unsigned col,
-                  const char c,
-                  bool proportional = true);
+    const char c,
+    bool proportional = true);
 
 void draw_small_digit(
     uint8_t column,

@@ -3,8 +3,8 @@
  * 18 * 5x7 modules = 90x7 screen
  */
 
-#include "pico/stdlib.h"
 #include "led_matrix.h"
+#include "pico/stdlib.h"
 
 // Pin definitions
 
@@ -21,22 +21,20 @@
 #define ROW5 10
 #define ROW6 11
 
-
-
 // Frame buffers
-//typedef struct {
+// typedef struct {
 //    uint8_t fb[HEIGHT][WIDTH];
 //} FrameBuf;
 
-uint8_t fb1[HEIGHT*WIDTH];
-uint8_t fb2[HEIGHT*WIDTH];
-
+uint8_t fb1[HEIGHT * WIDTH];
+uint8_t fb2[HEIGHT * WIDTH];
 
 static uint8_t* disp_fb = fb2;
 static uint8_t* draw_fb = fb1;
 
 /// Commit the draw buffer to the framebuffer.
-void swap_buffer() {
+void swap_buffer()
+{
     /// TODO: SYNC
     uint8_t* tmp = disp_fb;
     disp_fb = draw_fb;
@@ -63,7 +61,7 @@ void ledmatrix_setup()
     // Load a test pattern into the framebuffer.
     for (int y = 0; y < HEIGHT; y++)
         for (int x = 0; x < WIDTH; x++)
-            disp_fb[y*WIDTH + x] = (x % 8) < y ? 0 : 1;
+            disp_fb[y * WIDTH + x] = (x % 8) < y ? 0 : 1;
 }
 
 static inline void row(const int row_pin,
@@ -140,7 +138,7 @@ void pwm_loop()
     {
         for (unsigned i = 0; i < 8; i++) {
             for (int j = 0; j < HEIGHT; j++) {
-                row(row_pins[j], disp_fb+(j*WIDTH), i * 256 / 8, bright[i]);
+                row(row_pins[j], disp_fb + (j * WIDTH), i * 256 / 8, bright[i]);
             }
         }
     }
@@ -149,7 +147,7 @@ void pwm_loop()
 void binary_loop()
 {
     for (int i = 0; i < HEIGHT; i++) {
-        row(row_pins[i], disp_fb+(i*WIDTH), 0, 400);
+        row(row_pins[i], disp_fb + (i * WIDTH), 0, 400);
     }
 }
 
@@ -174,77 +172,67 @@ void draw_px(
     const uint8_t row,
     const uint8_t bright)
 {
-    draw_fb[row*WIDTH+col] = bright;
+    draw_fb[row * WIDTH + col] = bright;
 }
-
 
 uint8_t
 draw_char(
-	unsigned col,
-	const char c,
-        bool proportional
-)
+    unsigned col,
+    const char c,
+    bool proportional)
 {
     uint8_t w = 0;
     if (c == ' ') {
-        return proportional?3:5;
+        return proportional ? 3 : 5;
     }
-    for (uint8_t y=0 ; y<5 ; y++) {
-        uint8_t cv = LETTERS[c-ASCII_OFFSET][y];
+    for (uint8_t y = 0; y < 5; y++) {
+        uint8_t cv = LETTERS[c - ASCII_OFFSET][y];
         if (!proportional || (cv != 0)) {
-            draw_col(col++, LETTERS[c - ASCII_OFFSET][y], 0xFF); w++;
+            draw_col(col++, LETTERS[c - ASCII_OFFSET][y], 0xFF);
+            w++;
         }
     }
     return w;
 }
-
 
 /*
  * Output 4 Characters to Display
  */
 uint8_t
 draw_string(const uint8_t col,
-            const char * outText,
-            bool proportional
-        
+    const char* outText,
+    bool proportional
+
 )
 {
     int i;
-	for (i=col ; i < WIDTH && *outText ; i+=1)
-            i += draw_char(i, *outText++, proportional);
-        return i;
+    for (i = col; i < WIDTH && *outText; i += 1)
+        i += draw_char(i, *outText++, proportional);
+    return i;
 }
 
-
-void
-draw_small_digit(
-	uint8_t column,
-	unsigned digit,
-	unsigned blinking
-)
+void draw_small_digit(
+    uint8_t column,
+    unsigned digit,
+    unsigned blinking)
 {
-	for (unsigned i=0 ; i < 4 ; i++)
-	{
-		draw_col(
-			column+i,
-			LETTERS[digit+DIGIT_OFFSET][i+1],
-			0xFF //blinkON && blinking ? 0 : 0xFF
-		);
-	}
+    for (unsigned i = 0; i < 4; i++) {
+        draw_col(
+            column + i,
+            LETTERS[digit + DIGIT_OFFSET][i + 1],
+            0xFF // blinkON && blinking ? 0 : 0xFF
+        );
+    }
 }
-
 
 /*
  * Clear LED Matrix
  */
-void
-draw_clear()
+void draw_clear()
 {
-	for (int i=0 ; i<WIDTH ; i++)
-		draw_col(i, 0, 0);
+    for (int i = 0; i < WIDTH; i++)
+        draw_col(i, 0, 0);
 }
-
-
 
 /**
  * Display the four digit time with small characters.
@@ -255,30 +243,28 @@ draw_clear()
  * Blinks if it settng mode
  * displays AM/PM dot and Alarm on dot
  */
-void
-draw_time(
-	uint8_t dig1,
-	uint8_t dig2,
-	uint8_t dig3,
-	uint8_t dig4
-)
+void draw_time(
+    uint8_t dig1,
+    uint8_t dig2,
+    uint8_t dig3,
+    uint8_t dig4)
 {
-	const int blinkHour = 0;
-	const int blinkMin = 0;
+    const int blinkHour = 0;
+    const int blinkMin = 0;
 
-	draw_small_digit( 2, dig1, blinkHour);
-	draw_small_digit( 6, dig2, blinkHour);
+    draw_small_digit(2, dig1, blinkHour);
+    draw_small_digit(6, dig2, blinkHour);
 
-	// the slowly flashing " : "
-	static uint16_t bright = 0;
-	uint8_t b = bright++ / 1;
-	if (b >= 128)
-		b = 0xFF - b;
-	draw_px(10, 2, 2*b);
-	draw_px(10, 4, 2*b);
+    // the slowly flashing " : "
+    static uint16_t bright = 0;
+    uint8_t b = bright++ / 1;
+    if (b >= 128)
+        b = 0xFF - b;
+    draw_px(10, 2, 2 * b);
+    draw_px(10, 4, 2 * b);
 
-	draw_small_digit(12, dig3, blinkMin);
-	draw_small_digit(16, dig4, blinkMin);
+    draw_small_digit(12, dig3, blinkMin);
+    draw_small_digit(16, dig4, blinkMin);
 
 #if 0
 	AMPMALARMDOTS = 0;

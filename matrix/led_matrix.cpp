@@ -176,14 +176,21 @@ void draw_px(
 }
 
 
-void
+uint8_t
 draw_char(
 	unsigned col,
-	const char c
+	const char c,
+        bool proportional
 )
 {
-	for (uint8_t y=0 ; y<5 ; y++)
-		draw_col(col++, LETTERS[c - ASCII_OFFSET][y], 0xFF);
+    uint8_t w = 0;
+    for (uint8_t y=0 ; y<5 ; y++) {
+        uint8_t cv = LETTERS[c-ASCII_OFFSET][y];
+        if (!proportional || (cv != 0)) {
+            draw_col(col++, LETTERS[c - ASCII_OFFSET][y], 0xFF); w++;
+        }
+    }
+    return w;
 }
 
 
@@ -192,11 +199,13 @@ draw_char(
  */
 void
 draw_string(
-	const char * outText
+            const char * outText,
+            bool proportional
+        
 )
 {
-	for (int i=0 ; i < WIDTH && *outText ; i+=6)
-		draw_char(i, *outText++);
+	for (int i=0 ; i < WIDTH && *outText ; i+=1)
+            i += draw_char(i, *outText++, proportional);
 }
 
 

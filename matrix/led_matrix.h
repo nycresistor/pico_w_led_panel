@@ -33,12 +33,13 @@ void draw_px(
     const uint8_t row,
     const uint8_t bright);
 
-void draw_string(
-    const char outText[]);
+void draw_string(const char outText[],
+                 bool proportional = true);
 
-void draw_char(
-    unsigned col,
-    const char c);
+// Returns the width of the character drawn.
+uint8_t draw_char(unsigned col,
+                  const char c,
+                  bool proportional = true);
 
 void draw_small_digit(
     uint8_t column,

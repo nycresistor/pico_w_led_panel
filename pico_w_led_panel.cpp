@@ -189,7 +189,6 @@ int main()
         col = draw_string(col,":",true);
         snprintf(buf, 8, "%02d", dt.min);
         col = draw_string(col+1,buf,false);
-        draw_px(0,0,0xff);
         swap_buffer();
     }
 }

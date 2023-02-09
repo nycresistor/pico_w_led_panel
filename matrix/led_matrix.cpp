@@ -81,6 +81,7 @@ static inline void row(const int row_pin,
         gpio_put(LED_DATA, data[i] > bright ? 1 : 0);
         gpio_put(LED_CLOCK1, 0);
     }
+    gpio_put(LED_CLOCK1, 1);
 
     // after the evens clock2 goes HIGH
     gpio_put(LED_CLOCK2, 1);
@@ -92,6 +93,7 @@ static inline void row(const int row_pin,
         gpio_put(LED_DATA, data[i] > bright ? 1 : 0);
         gpio_put(LED_CLOCK2, 0);
     }
+    gpio_put(LED_CLOCK2, 1);
 
     // always return the data pin to zero
     gpio_put(LED_DATA, 0);

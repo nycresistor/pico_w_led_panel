@@ -194,10 +194,10 @@ int main()
         int col = draw_string(0, buf, false);
         col = draw_string(col, ":", true);
         snprintf(buf, 8, "%02d", dt.min);
-        col = draw_string(col + 1, buf, false);
+        col = draw_string(col, buf, false);
         col += 10;
         snprintf(buf, 16, "%d %s %02d", dt.day, month_abbrevs[dt.month], dt.year%100);
-        col = draw_string(col + 1, buf, true);
+        col = draw_string(col, buf, true);
         swap_buffer();
     }
 }

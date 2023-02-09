@@ -14,6 +14,7 @@
 #include "lwip/tcp.h"
 #include "lwip/dns.h"
 #include <string.h>
+#include <stdarg.h>
 
 #include "matrix/led_matrix.h"
 
@@ -77,32 +78,46 @@ void core1() {
     }
 }
 
+void debug_msg(const char* format, ...) {
+    char buf[16];
+    va_list args;
+    va_start(args,format);
+    printf(format, args);
+    va_end(args);
+    va_start(args, format);
+    snprintf(buf, 16, format, args);
+    va_end(args);
+    draw_clear();
+    draw_string(buf);
+    swap_buffer();
+}
+    
 // Main loop
 int main()
 {
     stdio_init_all();
-
-    
-    sleep_ms(1000);
-
-    printf("Spawning matrix.\n");
+    sleep_ms(50);
     multicore_launch_core1(core1);
-    
     /// Connect to the wifi.
-    /// TODO: user-facing reporting that wifi connection has failed
     if (cyw43_arch_init_with_country(CYW43_COUNTRY_USA)) {
+        debug_msg("WiFi init fail");
         printf("Failed to initialise wireless architecture; giving up.\n");
         return 1;
     }
+    debug_msg("Joining " PW_SSID);
     printf("Initialised CYW43 module. Attempting to log in to AP " PW_SSID ".\n");
     cyw43_arch_enable_sta_mode();
     while (cyw43_arch_wifi_connect_timeout_ms(wfssid, wfpass, CYW43_AUTH_WPA2_AES_PSK, 10000)) {
         printf("Failed to connect to " PW_SSID "; retrying.\n");
     }
+    debug_msg("Joined " PW_SSID ".");
     printf("Successfully connected to network.");
 
+    debug_msg("Getting time...");
     /// Configure the RTC and retrieve time from NTP server.
     start_synchronization(-5,true);
+
+    debug_msg("Reaching MQTT...");
 
     /// Attempt to connect to the MQTT server.
     ip_addr_t mqtt_ip;

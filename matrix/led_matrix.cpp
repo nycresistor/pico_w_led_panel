@@ -195,7 +195,7 @@ draw_string(
 	const char * outText
 )
 {
-	for (int i=1 ; i < WIDTH && *outText ; i+=5)
+	for (int i=0 ; i < WIDTH && *outText ; i+=6)
 		draw_char(i, *outText++);
 }
 

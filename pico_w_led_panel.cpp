@@ -45,7 +45,24 @@
 char wfssid[] = PW_SSID;
 char wfpass[] = PW_PASS;
 
-const char* mqtt_hostname = MQTT_HOSTNAME;
+#ifndef MQTT_USER
+#define MQTT_USER NULL
+#endif
+
+#ifndef MQTT_PASS
+#define MQTT_PASS NULL
+#endif
+
+const char mqttuser[] = MQTT_USER;
+const char mqttpass[] = MQTT_PASS;
+
+const char* mqtt_hostname = "homeassistant.lan";
+    //MQTT_HOSTNAME;
+
+const char* mqtt_config = R"({ 
+    "command_topic":"pico_w_led_panel/power", 
+    "name":"beeping clock" 
+})";
 
 void cb_connection(mqtt_client_t* client, void* arg, mqtt_connection_status_t status)
 {
@@ -148,8 +165,8 @@ int main()
         mqtt_client_t* client = mqtt_client_new();
         mqtt_connect_client_info_t client_info = {
             .client_id = "CLIENT-ID-UNIQ",
-            .client_user = NULL, // no password by default
-            .client_pass = NULL,
+            .client_user = MQTT_USER, // no password by default
+            .client_pass = MQTT_PASS,
             .keep_alive = 0, // keepalive in seconds
             .will_topic = NULL, // no will topic
         };
@@ -165,11 +182,14 @@ int main()
                 if (--retries == 0)
                     break;
             }
-            if (mqtt_client_is_connected(client)) {
+            if (true || mqtt_client_is_connected(client)) {
                 printf("Connected!\n");
-                cyw43_arch_lwip_begin();
-                err_t err = mqtt_publish(client, "house/silly", "Pico W online!", 14, 2, 0, cb_complete, NULL);
-                cyw43_arch_lwip_end();
+                //cyw43_arch_lwip_begin();
+                printf("start pub\n");
+                // Send home automation message
+                err_t err = mqtt_publish(client, "homeassistant/light/pico_clock/config", mqtt_config, strlen(mqtt_config), 2, 0, cb_complete, NULL);
+                printf("end pub\n");
+                //cyw43_arch_lwip_end();
                 if (err != ERR_OK) {
                     printf("MQTT publish error %d\n", err);
                 }

@@ -5,6 +5,9 @@
 // Common settings used in most of the pico_w examples
 // (see https://www.nongnu.org/lwip/2_1_x/group__lwip__opts.html for details)
 
+// HACK ALERT: not enough timeout structures are being allocated?
+#define MEMP_NUM_SYS_TIMEOUT            (LWIP_NUM_SYS_TIMEOUT_INTERNAL+2) 
+
 // allow override in some examples
 #ifndef NO_SYS
 #define NO_SYS                      1

@@ -19,31 +19,19 @@
 #include "matrix/led_matrix.h"
 
 //// CONFIGURATION
+// Configuration is done in the config.h header. For more information, look at the
+// "config.template.h" file.
+#include "config.h"
 
 // SNTP is configured in CMakefiles.txt.
-
-// WiFi network configuration for connecting to the AP. Default credentials are for the guest
-// network at NYCR.
-#ifndef PW_SSID
-#define PW_SSID "NYCR24"
+#ifndef AP_SSID
+#error Please define the SSID of the network in config.h.
 #endif
 
-#ifndef PW_PASS
-#error Please define the network password by setting the PW_PASS environment variable when running cmake.
+// Handle defaults.
+#ifndef MQTT_PORT
+#define MQTT_PORT 1883
 #endif
-
-// The MQTT server name.
-#ifndef MQTT_HOSTNAME
-#error Please define the network password by setting the MQTT_HOSTNAME environment variable when running cmake.
-#endif
-
-// The MQTT port number.
-#ifndef TCP_PORT
-#define TCP_PORT 1883
-#endif
-
-char wfssid[] = PW_SSID;
-char wfpass[] = PW_PASS;
 
 #ifndef MQTT_USER
 #define MQTT_USER NULL
@@ -53,38 +41,51 @@ char wfpass[] = PW_PASS;
 #define MQTT_PASS NULL
 #endif
 
-const char mqttuser[] = MQTT_USER;
-const char mqttpass[] = MQTT_PASS;
+// The MQTT server name.
+#ifndef MQTT_HOSTNAME
+#error Please define the network password in config.h.
+#endif
 
-const char* mqtt_hostname = "homeassistant.lan";
-    //MQTT_HOSTNAME;
+const char* ap_ssid = AP_SSID;
+const char* ap_pass = AP_PASS;
+
+const char* mqtt_user = MQTT_USER;
+const char* mqtt_pass = MQTT_PASS;
+
+const char* mqtt_hostname = MQTT_HOSTNAME;
 
 const char* mqtt_config = R"({ 
     "command_topic":"pico_w_led_panel/power", 
     "name":"beeping clock" 
 })";
 
-void cb_connection(mqtt_client_t* client, void* arg, mqtt_connection_status_t status)
+static void cb_connection(mqtt_client_t* client, void* arg, mqtt_connection_status_t status)
 {
-    printf("CB_CONNECTION");
+    printf("CB_CONNECTION\n");
 }
 
 bool done = false;
 void cb_complete(void* arg, err_t err)
 {
-    printf("CB_COMPLETE");
+    switch (err) {
+    ERR_OK: printf("pub ok\n"); break;
+    ERR_TIMEOUT: printf("timed out\n"); break;
+    ERR_ABRT: printf("sub/unsub failed\n"); break;
+    default: printf("Unknown error %d\n",err); break;
+    }
     done = true;
 }
 
-static void mqtt_found(const char* hostname, const ip_addr_t* ipaddr, void* arg)
+
+static void dns_found(const char* hostname, const ip_addr_t* ip_addr, void* arg)
 {
-    int* status = (int*)arg;
-    if (ipaddr == NULL) {
-        printf("Resolution failed.\n");
-        *status = -1;
+    ip_addr_t* returned_ip = (ip_addr_t*)arg;
+    if (ip_addr == NULL) {
+        printf("Resolution failed for %s.\n",hostname);
+        ip_addr_set_zero(returned_ip);
     } else {
-        printf("Resolution succeeded.\n");
-        *status = 1;
+        printf("Resolution succeeded for %s.\n",hostname);
+        *returned_ip = *ip_addr;
     }
 }
 
@@ -115,81 +116,113 @@ const char* month_abbrevs[12] =
     { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
-// Main loop
+
 int main()
 {
+    /// Set up basic Pico functionality and then sleep for one second (50ms is fine,
+    /// but as a convenience for debugging).
     stdio_init_all();
-    sleep_ms(50);
+    sleep_ms(1000);
+    /// Start core1, which refreshes the LED display.
     multicore_launch_core1(core1);
-    /// Connect to the wifi.
+    
+    /// Connect to the wireless AP.
+    // First, initialize the cyw43 module.
     if (cyw43_arch_init_with_country(CYW43_COUNTRY_USA)) {
         debug_msg("WiFi init fail");
         printf("Failed to initialise wireless architecture; giving up.\n");
         return 1;
     }
-    debug_msg("Joining " PW_SSID);
-    printf("Initialised CYW43 module. Attempting to log in to AP " PW_SSID ".\n");
+    debug_msg("Joining " AP_SSID);
+    printf("Initialised CYW43 module. Attempting to connect to " AP_SSID ".\n");
+    // Enable station (AP client) mode.
     cyw43_arch_enable_sta_mode();
-    while (cyw43_arch_wifi_connect_timeout_ms(wfssid, wfpass, CYW43_AUTH_WPA2_AES_PSK, 10000)) {
-        printf("Failed to connect to " PW_SSID "; retrying.\n");
+    //
+    while (cyw43_arch_wifi_connect_timeout_ms(ap_ssid, ap_pass, CYW43_AUTH_WPA2_AES_PSK, 10000)) {
+        printf("Failed to connect to " AP_SSID "; retrying.\n");
+        debug_msg( AP_SSID " retry..." );
+        sleep_ms(5000);
     }
-    debug_msg("Joined " PW_SSID ".");
-    printf("Successfully connected to network.");
+    debug_msg("Joined " AP_SSID ".");
+    printf("Successfully connected to network.\n");
 
+    /*
     debug_msg("Getting time...");
+    printf("Retrieving time via SNTP.\n");
     /// Configure the RTC and retrieve time from NTP server.
     start_synchronization(-5, true);
+    printf("SNTP complete.\n");
+    */
 
-    debug_msg("Reaching MQTT...");
+    debug_msg("MQTT connect...");
 
     /// Attempt to connect to the MQTT server.
-    ip_addr_t mqtt_ip;
     int retries = 10;
-    int status = 0;
-    while (retries-- > 0) {
-        printf("Looking up " MQTT_HOSTNAME "...");
-        err_t err = dns_gethostbyname(mqtt_hostname, &mqtt_ip,
-            mqtt_found, &status);
-        while (status == 0) {
-            sleep_ms(1);
+    ip_addr_t mqtt_ip;
+    ip_addr_set_zero(&mqtt_ip);
+    ip_addr_t zero_ip;
+    ip_addr_set_zero(&zero_ip);
+    printf("Looking up " MQTT_HOSTNAME ".\n");
+    switch (dns_gethostbyname(mqtt_hostname, &mqtt_ip, dns_found, (void*)&mqtt_ip)) {
+    case ERR_OK:
+        break;
+    case ERR_INPROGRESS:
+        while(retries--) {
+            if (ip_addr_cmp(&mqtt_ip,&zero_ip)) {
+                sleep_ms(100);
+            } else { break; }
         }
-        if (status == 1) {
-            printf("Finished lookup.\n");
-            break;
-        } else {
-            printf("Retrying.\n");
-        }
+        if (retries == 0) { printf("Failed to resolve DNS.\n"); }
+        break;
+    case ERR_ARG:
+        printf("DNS lookup argument error!\n");
+        break;
     }
-    if (status == 1) {
-
+    
+    if (!ip_addr_cmp(&mqtt_ip,&zero_ip)) {
+        printf("Got nonzero addresss %d.%d.%d.%d, proceeding.\n",
+               (mqtt_ip.addr >> 0) & 0xff,
+               (mqtt_ip.addr >> 8) & 0xff,
+               (mqtt_ip.addr >> 16) & 0xff,
+               (mqtt_ip.addr >> 24) & 0xff
+               );
         mqtt_client_t* client = mqtt_client_new();
         mqtt_connect_client_info_t client_info = {
-            .client_id = "CLIENT-ID-UNIQ",
+            .client_id = "pico_w",
             .client_user = MQTT_USER, // no password by default
             .client_pass = MQTT_PASS,
             .keep_alive = 0, // keepalive in seconds
             .will_topic = NULL, // no will topic
         };
+        printf("connecting to client... \n");
         cyw43_arch_lwip_begin();
-        err_t err = mqtt_client_connect(client, &mqtt_ip, TCP_PORT, cb_connection, NULL, &client_info);
+        err_t err = mqtt_client_connect(client, &mqtt_ip, MQTT_PORT, cb_connection, NULL, &client_info);
         cyw43_arch_lwip_end();
+        printf("client connect called.\n");
         if (err != ERR_OK) { // handle error
             printf("MQTT connect error %d\n", err);
         } else {
-            int retries = 10;
-            while (!mqtt_client_is_connected(client)) {
+            printf("waiting for connect\n");
+            int retries = 100;
+            while (retries--) {
+                cyw43_arch_lwip_begin();
+                if (mqtt_client_is_connected(client)) break;
+                cyw43_arch_lwip_end();
                 sleep_ms(100);
-                if (--retries == 0)
-                    break;
             }
-            if (true || mqtt_client_is_connected(client)) {
-                printf("Connected!\n");
-                //cyw43_arch_lwip_begin();
+            printf("waited for connect\n");
+            if (mqtt_client_is_connected(client)) {
                 printf("start pub\n");
                 // Send home automation message
-                err_t err = mqtt_publish(client, "homeassistant/light/pico_clock/config", mqtt_config, strlen(mqtt_config), 2, 0, cb_complete, NULL);
+                cyw43_arch_lwip_begin();
+                err_t err = mqtt_publish(client, "homeassistant/light/pico_clock/config", mqtt_config, strlen(mqtt_config), 1, 0, cb_complete, NULL);
+                cyw43_arch_lwip_end();
+                switch(err) {
+                case ERR_ARG: printf("[arg error]\n"); break;
+                case ERR_CONN: printf("[conn error]\n"); break;
+                case ERR_MEM: printf("[mem error]\n"); break;
+                }
                 printf("end pub\n");
-                //cyw43_arch_lwip_end();
                 if (err != ERR_OK) {
                     printf("MQTT publish error %d\n", err);
                 }
@@ -210,6 +243,7 @@ int main()
         static char datetime_buf[256];
         static char* datetime_str = datetime_buf;
         char buf[16];
+        /*
         snprintf(buf, 8, "%2d", dt.hour);
         int col = draw_string(0, buf, false);
         col = draw_string(col, ":", true);
@@ -218,6 +252,7 @@ int main()
         col += 10;
         snprintf(buf, 16, "%d %s %02d", dt.day, month_abbrevs[dt.month], dt.year%100);
         col = draw_string(col, buf, true);
+        */
         swap_buffer();
     }
 }

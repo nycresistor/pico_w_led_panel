@@ -101,7 +101,6 @@ void start_synchronization(int tz_off, bool blocking)
             // TODO: time out eventually
             sleep_ms(1);
         }
+        sntp_stop();
     }
-    printf("Got it.\n");
-    sntp_stop();
 }
